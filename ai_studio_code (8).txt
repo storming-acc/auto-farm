@@ -1,10 +1,3 @@
--- =====================================================================
---  STORM HUB -- MM2 PREMIUM ULTIMATE EDITION (WINDUI)
---  Author: Storming+AI
---  Revision: Merged v4 — Added AlignPosition, Invisibility, Silent Kills, Ignore Murderer Mode
--- =====================================================================
-
--- SERVICES
 local Players           = game:GetService("Players")
 local TweenService      = game:GetService("TweenService")
 local RunService        = game:GetService("RunService")
@@ -17,7 +10,6 @@ local TeleportService   = game:GetService("TeleportService")
 local CoreGui           = game:GetService("CoreGui")
 local GuiService        = game:GetService("GuiService")
 
--- WINDUI INITIALIZATION
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local Window = WindUI:CreateWindow({
@@ -38,9 +30,6 @@ local function sendNotification(config)
     })
 end
 
--- =======================================================
---   QUEUE ON TELEPORT / AUTO-RELOAD ENGINE
--- =======================================================
 local function queueScriptReload()
     local queueFunc = (syn and syn.queue_on_teleport)
         or queue_on_teleport
@@ -53,7 +42,6 @@ local function queueScriptReload()
                 repeat task.wait(1) until game:IsLoaded()
                 task.wait(2)
                 
-                -- Directly load the remote script without checking for local files
                 local success, err = pcall(function()
                     loadstring(game:HttpGet("https://raw.githubusercontent.com/storming-acc/auto-farm/refs/heads/main/ai_studio_code%20(8).txt"))()
                 end)
@@ -68,8 +56,6 @@ local function queueScriptReload()
     end
 end
 
-
--- AUTO REJOIN ON KICK / DISCONNECT
 pcall(function()
     local promptOverlay = CoreGui:WaitForChild("PromptOverlay", 5)
     if promptOverlay then
@@ -90,9 +76,6 @@ GuiService.ErrorMessageChanged:Connect(function()
     TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
 end)
 
--- =======================================================
---   REMOTES
--- =======================================================
 local Remotes         = ReplicatedStorage:WaitForChild("Remotes")
 local ExtrasRemotes   = Remotes:WaitForChild("Extras")
 local GameplayRemotes = Remotes:WaitForChild("Gameplay")
@@ -104,9 +87,6 @@ local VictoryScreenRemote  = GameplayRemotes:WaitForChild("VictoryScreen")
 local CoinCollectedEvent   = GameplayRemotes:WaitForChild("CoinCollected")
 local OpenCrateRemote      = Remotes:WaitForChild("Shop"):WaitForChild("OpenCrate")
 
--- =======================================================
---   VARIABLES
--- =======================================================
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local Camera    = Workspace.CurrentCamera
@@ -120,8 +100,8 @@ local isSearchingForGun  = false
 local autoGrabGun        = true
 local antiLagEnabled     = false
 local antiLagConnection  = nil
-local farmMode           = "Lerp"   -- "Velocity (Glide)" | "Lerp" | "Instant TP" | "AlignPosition"
-local ignoreMurderer     = false    -- NEW: Ignore Murderer mode
+local farmMode           = "Lerp"
+local ignoreMurderer     = false
 local flySpeed           = 24
 local collected          = 0
 local startTime          = 0
@@ -130,21 +110,17 @@ local originalGravity    = Workspace.Gravity
 local maxCoinLimit       = 40
 local debugTraces        = false
 
--- Invisibility State
 local isInvis            = false
 local invisConnection     = nil
 
--- Silent Combat State
 local silentAuraEnabled  = false
 local silentAuraRange    = 20
 local silentAuraConnection = nil
 
--- AlignPosition Controllers
 local farmAttachment     = nil
 local alignPos           = nil
 local alignRot           = nil
 
--- Rival detection
 local detectRivalFarmers    = true
 local detectedAutoFarmers   = {}
 local playerLastPositions   = {}
@@ -154,10 +130,8 @@ local priorityKillFarmers   = true
 local autoServerHopOnFarmers = false
 local maxFarmersBeforeHop   = 2
 
--- Coords
 local safeWaitingPlace = Vector3.new(9999, -300, 9999)
 
--- Crate opener
 local autoOpenCrate   = true
 local targetType      = "Coins"
 local selectedCrates  = {}
@@ -168,7 +142,6 @@ local crateOptions = {
     "MysteryBox1", "MysteryBox2", "RainbowBox"
 }
 
--- Match state
 local matchData         = nil
 local localCoins        = 0
 local bagsFull          = false
@@ -176,21 +149,16 @@ local hasResetForFullBag = false
 local murdererPosition  = nil
 local murdererPlayer    = nil
 
--- Kinematic prediction
 local State = {
     Prediction  = 0.12,
     GunLeadMult = 1.1
 }
 
--- Globals
 Workspace.FallenPartsDestroyHeight = -50000
 pcall(function()
     player.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
 end)
 
--- =======================================================
---   FEATURE 2: CAMERA-OFFSET INVISIBILITY
--- =======================================================
 local function toggleInvisible(state)
     isInvis = state
     if invisConnection then 
@@ -222,9 +190,6 @@ local function toggleInvisible(state)
     end
 end
 
--- =======================================================
---   FEATURE 1: ALIGNPOSITION CONTROLLER HELPERS
--- =======================================================
 local function cleanupAlignFarm()
     if alignPos then pcall(function() alignPos:Destroy() end) alignPos = nil end
     if alignRot then pcall(function() alignRot:Destroy() end) alignRot = nil end
@@ -256,9 +221,6 @@ local function moveToCoinAlign(targetPos)
     alignPos.Position = targetPos
 end
 
--- =======================================================
---   SMART LOBBY DETECTION
--- =======================================================
 local function isPlayerInLobby()
     local container = Workspace:FindFirstChild("CoinContainer", true)
         or Workspace:FindFirstChild("CoinVisuals", true)
@@ -277,9 +239,6 @@ local function isPlayerInLobby()
     return false
 end
 
--- =======================================================
---   SERVER HOPPING ENGINE
--- =======================================================
 local function serverHop()
     sendNotification({ Title = "Server Hopping", Desc = "Rival farmers detected! Finding fresh server..." })
     task.wait(1)
@@ -323,9 +282,6 @@ local function serverHop()
     end)
 end
 
--- =======================================================
---   ANTI-LAG ENGINE
--- =======================================================
 local function optimizePart(part)
     if part:IsA("BasePart") then
         part.Material = Enum.Material.SmoothPlastic
@@ -365,9 +321,6 @@ local function applyAntiLag()
     end)
 end
 
--- =======================================================
---   SPATIAL DEBUG TRACES
--- =======================================================
 local function drawVisualTrace(startPos, targetPos, color, infoText, duration)
     if not debugTraces then return end
     local dist = (startPos - targetPos).Magnitude
@@ -405,9 +358,6 @@ local function drawVisualTrace(startPos, targetPos, color, infoText, duration)
     task.delay(duration or 0.6, function() tracePart:Destroy() end)
 end
 
--- =======================================================
---   RIVAL FARMER COIN AVOIDANCE
--- =======================================================
 local function isCoinTargetedByFarmer(coin)
     if not avoidFarmerCoins then return false end
     for farmerPlr in pairs(detectedAutoFarmers) do
@@ -421,9 +371,6 @@ local function isCoinTargetedByFarmer(coin)
     return false
 end
 
--- =======================================================
---   COIN FINDERS
--- =======================================================
 local function scanCoinContainers(callback)
     local checked = {}
     local containerNames = { "CoinContainer", "CoinVisuals", "Coins" }
@@ -532,9 +479,6 @@ local function getNearestCoinToPos(pos)
     return nearest, minDist
 end
 
--- =======================================================
---   RIVAL DETECTION
--- =======================================================
 RunService.Heartbeat:Connect(function(dt)
     if not detectRivalFarmers or dt <= 0 then return end
 
@@ -624,9 +568,6 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
--- =======================================================
---   SAFETY PLATFORM
--- =======================================================
 local safetyPlatform = Instance.new("Part")
 safetyPlatform.Name         = "StormHub_AntiTiltFloor"
 safetyPlatform.Size         = Vector3.new(12, 1, 12)
@@ -664,9 +605,6 @@ local collectSound = Instance.new("Sound", Workspace)
 collectSound.SoundId = "rbxassetid://90969806436898"
 collectSound.Volume  = 1
 
--- =======================================================
---   COMBAT & SILENT COMBAT MODULES (FEATURE 3)
--- =======================================================
 local function getLocalRole()
     if matchData and matchData[player.Name] then
         return matchData[player.Name].Role
@@ -705,7 +643,6 @@ function KillAll()
     sendNotification({ Title = "Kill All", Desc = "Everyone eliminated!" })
 end
 
--- SILENT KNIFE THROW
 function ExecuteSilentThrow()
     if not character or not rootPart then return end
     local knife = (character:FindFirstChild("Knife")) or (player.Backpack and player.Backpack:FindFirstChild("Knife"))
@@ -754,7 +691,6 @@ function ExecuteSilentThrow()
     end
 end
 
--- SILENT KNIFE AURA
 function ToggleSilentKnifeAura(state)
     silentAuraEnabled = state
     if silentAuraConnection then silentAuraConnection:Disconnect() silentAuraConnection = nil end
@@ -914,9 +850,6 @@ function GetGun()
     return false
 end
 
--- =======================================================
---   KINEMATIC PATH DANGER CHECK
--- =======================================================
 local function isPathDangerous(startPos, endPos, murdPos)
     if ignoreMurderer or getLocalRole() == "Murderer" or murdererPlayer == player then return false end
     if not murdPos or not murdererPlayer or not murdererPlayer.Character then return false end
@@ -953,9 +886,6 @@ local function isPathDangerous(startPos, endPos, murdPos)
     return false
 end
 
--- =======================================================
---   MOVEMENT HELPER
--- =======================================================
 local function moveToPosition(targetPos, speed)
     if not rootPart or not isActive then return end
     rootPart.Anchored = false
@@ -999,9 +929,6 @@ local function moveToPosition(targetPos, speed)
     end
 end
 
--- =======================================================
---   FARMING CORE FUNCTIONS
--- =======================================================
 local function stopFarm()
     isActive         = false
     isRoundActive    = false
@@ -1154,9 +1081,6 @@ local function startFarm()
                 continue
             end
 
-            -- -----------------------------------------------
-            --  FEATURE 1: ALIGNPOSITION FARM MODE
-            -- -----------------------------------------------
             if farmMode == "AlignPosition" then
                 local coinPath = getSortedCoinPath()
                 if #coinPath == 0 then
@@ -1178,7 +1102,6 @@ local function startFarm()
                     local targetPos        = targetCoin.Position + Vector3.new(0, -4, 0)
                     local distanceToTarget = (targetPos - rootPart.Position).Magnitude
 
-                    -- Murderer avoidance (Skipped if ignoreMurderer is TRUE)
                     if not ignoreMurderer and getLocalRole() ~= "Murderer" and distanceToTarget < 200
                     and murdererPosition and isPathDangerous(rootPart.Position, targetPos, murdererPosition) then
                         cleanupAlignFarm()
@@ -1213,9 +1136,6 @@ local function startFarm()
                 cleanupAlignFarm()
             end
 
-            -- -----------------------------------------------
-            --  VELOCITY (GLIDE) MODE
-            -- -----------------------------------------------
             if farmMode == "Velocity (Glide)" then
                 local targetCoin = getNearestValidCoin(rootPart)
                 if targetCoin then
@@ -1247,9 +1167,6 @@ local function startFarm()
                 continue
             end
 
-            -- -----------------------------------------------
-            --  LERP + INSTANT TP MODES
-            -- -----------------------------------------------
             local coinPath = getSortedCoinPath()
 
             if #coinPath == 0 then
@@ -1270,7 +1187,6 @@ local function startFarm()
                 local targetPos         = targetCoin.Position + Vector3.new(0, -4, 0)
                 local distanceToTarget  = (targetPos - rootPart.Position).Magnitude
 
-                -- Murderer avoidance (Skipped if ignoreMurderer is TRUE)
                 if not ignoreMurderer and getLocalRole() ~= "Murderer" and distanceToTarget < 200
                 and murdererPosition and isPathDangerous(rootPart.Position, targetPos, murdererPosition) then
                     if (rootPart.Position - safeWaitingPlace).Magnitude > 3 then
@@ -1318,15 +1234,10 @@ local function startFarm()
     end)
 end
 
--- =======================================================
---   WINDUI INTERFACE
--- =======================================================
-
 local TabMain   = Window:Tab({ Title = "Auto Farm", Icon = "tractor" })
 local TabRivals = Window:Tab({ Title = "Rival Defense", Icon = "shield" })
 local TabCombat = Window:Tab({ Title = "Combat Matrix", Icon = "swords" })
 
--- MAIN TAB (AUTO FARM)
 local AnalyticsSection = TabMain:Section({ Title = "Farming Analytics", Opened = true })
 
 local StatsRow1 = AnalyticsSection:HStack()
@@ -1380,7 +1291,6 @@ FarmEngineSection:Dropdown({
     end
 })
 
--- NEW: IGNORE MURDERER MODE TOGGLE
 FarmEngineSection:Toggle({
     Title = "Ignore Murderer Proximity",
     Desc = "When enabled, farming will ignore murderer danger checks and farm continuously.",
@@ -1453,7 +1363,6 @@ FarmEngineSection:Dropdown({
     end
 })
 
--- RIVALS TAB
 local RivalSection = TabRivals:Section({ Title = "Detection & Avoidance Strategy", Opened = true })
 
 RivalSection:Toggle({
@@ -1512,7 +1421,6 @@ ServerSection:Button({
     Callback = function() serverHop() end
 })
 
--- COMBAT TAB
 local TargetingSection = TabCombat:Section({ Title = "Targeting Mechanics", Opened = true })
 
 TargetingSection:Slider({
@@ -1531,7 +1439,6 @@ TargetingSection:Slider({
     Callback = function(value) State.GunLeadMult = value end
 })
 
--- NEW: SILENT COMBAT & INVISIBILITY SECTION
 local SilentSection = TabCombat:Section({ Title = "Silent Combat & Invisibility", Opened = true })
 
 SilentSection:Toggle({
@@ -1582,9 +1489,6 @@ ActionsSection:Button({
     Callback = function() KillAll() end
 })
 
--- =======================================================
---   ANTI-AFK & EVENTS
--- =======================================================
 player.Idled:Connect(function()
     if antiAFK then
         VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame)
@@ -1693,986 +1597,5 @@ if RoundStartRemote then
     end)
 end
 
--- Initialize
 updateMatchData()
-startFarm()local TeleportService   = game:GetService("TeleportService")
-local CoreGui           = game:GetService("CoreGui")
-local GuiService        = game:GetService("GuiService")
-
--- WINDUI INITIALIZATION
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-
-local Window = WindUI:CreateWindow({
-    Title = "Storm Hub",
-    Author = "MM2 Ultimate AFK Edition",
-    Theme = "Dark",
-    Folder = "StormHub_MM2_Config",
-    Size = UDim2.fromOffset(650, 480),
-    Transparency = 0.05,
-    Acrylic = true
-})
-
-local function sendNotification(config)
-    WindUI:Notify({
-        Title   = config.Title or "Storm Hub",
-        Content = config.Desc or "",
-        Duration = config.Duration or 3
-    })
-end
-
--- =======================================================
---   QUEUE ON TELEPORT / AUTO-RELOAD ENGINE
--- =======================================================
-local function queueScriptReload()
-    local queueFunc = (syn and syn.queue_on_teleport)
-        or queue_on_teleport
-        or (Fluxus and Fluxus.queue_on_teleport)
-        or (teleport and teleport.queue)
-
-    if queueFunc then
-        pcall(function()
-            queueFunc([[
-                repeat task.wait(1) until game:IsLoaded()
-                task.wait(2)
-                
-                -- Directly load the remote script without checking for local files
-                local success, err = pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/storming-acc/auto-farm/refs/heads/main/ai_studio_code%20(8).txt"))()
-                end)
-
-                if success then
-                    print("Storm Hub Script reloaded successfully after teleport/rejoin!")
-                else
-                    warn("Storm Hub: Failed to reload script after teleport - " .. tostring(err))
-                end
-            ]])
-        end)
-    end
-end
-
--- AUTO REJOIN ON KICK / DISCONNECT
-pcall(function()
-    local promptOverlay = CoreGui:WaitForChild("PromptOverlay", 5)
-    if promptOverlay then
-        promptOverlay.ChildAdded:Connect(function(child)
-            if child.Name == "ErrorPrompt" then
-                sendNotification({ Title = "Connection Lost", Desc = "Kick detected! Auto-rejoining in 3 seconds..." })
-                task.wait(3)
-                queueScriptReload()
-                TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
-            end
-        end)
-    end
-end)
-
-GuiService.ErrorMessageChanged:Connect(function()
-    task.wait(2)
-    queueScriptReload()
-    TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
-end)
-
--- =======================================================
---   REMOTES
--- =======================================================
-local Remotes         = ReplicatedStorage:WaitForChild("Remotes")
-local ExtrasRemotes   = Remotes:WaitForChild("Extras")
-local GameplayRemotes = Remotes:WaitForChild("Gameplay")
-
-local GetPlayerDataRemote  = ExtrasRemotes:WaitForChild("GetPlayerData")
-local RoundStartRemote     = GameplayRemotes:WaitForChild("RoundStart")
-local CoinsStartedRemote   = GameplayRemotes:WaitForChild("CoinsStarted")
-local VictoryScreenRemote  = GameplayRemotes:WaitForChild("VictoryScreen")
-local CoinCollectedEvent   = GameplayRemotes:WaitForChild("CoinCollected")
-local OpenCrateRemote      = Remotes:WaitForChild("Shop"):WaitForChild("OpenCrate")
-
--- =======================================================
---   VARIABLES
--- =======================================================
-local player    = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-local Camera    = Workspace.CurrentCamera
-local character = player.Character or player.CharacterAdded:Wait()
-local rootPart  = character:WaitForChild("HumanoidRootPart")
-
-local coinBlacklists     = {}
-local isActive           = false
-local isRoundActive      = false
-local isSearchingForGun  = false
-local autoGrabGun        = true
-local antiLagEnabled     = false
-local antiLagConnection  = nil
-local farmMode           = "Lerp"   -- "Velocity (Glide)" | "Lerp" | "Instant TP" | "AlignPosition"
-local ignoreMurderer     = false    -- NEW: Ignore Murderer mode
-local flySpeed           = 24
-local collected          = 0
-local startTime          = 0
-local antiAFK            = true
-local originalGravity    = Workspace.Gravity
-local maxCoinLimit       = 40
-local debugTraces        = false
-
--- Invisibility State
-local isInvis            = false
-local invisConnection     = nil
-
--- Silent Combat State
-local silentAuraEnabled  = false
-local silentAuraRange    = 20
-local silentAuraConnection = nil
-
--- AlignPosition Controllers
-local farmAttachment     = nil
-local alignPos           = nil
-local alignRot           = nil
-
--- Rival detection
-local detectRivalFarmers    = true
-local detectedAutoFarmers   = {}
-local playerLastPositions   = {}
-local playerSpeedFrames     = {}
-local avoidFarmerCoins      = true
-local priorityKillFarmers   = true
-local autoServerHopOnFarmers = false
-local maxFarmersBeforeHop   = 2
-
--- Coords
-local safeWaitingPlace = Vector3.new(9999, -300, 9999)
-
--- Crate opener
-local autoOpenCrate   = true
-local targetType      = "Coins"
-local selectedCrates  = {}
-local currentCrateIndex = 1
-local crateOptions = {
-    "KnifeBox1", "KnifeBox2", "KnifeBox3", "KnifeBox4", "KnifeBox5",
-    "GunBox1",   "GunBox2",   "GunBox3",   "GunBox4",   "GunBox5",
-    "MysteryBox1", "MysteryBox2", "RainbowBox"
-}
-
--- Match state
-local matchData         = nil
-local localCoins        = 0
-local bagsFull          = false
-local hasResetForFullBag = false
-local murdererPosition  = nil
-local murdererPlayer    = nil
-
--- Kinematic prediction
-local State = {
-    Prediction  = 0.12,
-    GunLeadMult = 1.1
-}
-
--- Globals
-Workspace.FallenPartsDestroyHeight = -50000
-pcall(function()
-    player.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
-end)
-
--- =======================================================
---   FEATURE 2: CAMERA-OFFSET INVISIBILITY
--- =======================================================
-local function toggleInvisible(state)
-    isInvis = state
-    if invisConnection then 
-        invisConnection:Disconnect() 
-        invisConnection = nil 
-    end
-
-    if state then
-        invisConnection = RunService.Heartbeat:Connect(function()
-            if rootPart and character and character:FindFirstChildOfClass("Humanoid") then
-                local realCFrame = rootPart.CFrame
-                local fakeCFrame = realCFrame * CFrame.new(0, -200000, 0)
-
-                rootPart.CFrame = fakeCFrame
-                character:FindFirstChildOfClass("Humanoid").CameraOffset = fakeCFrame:ToObjectSpace(CFrame.new(realCFrame.Position)).Position
-
-                RunService.RenderStepped:Wait()
-                if rootPart then 
-                    rootPart.CFrame = realCFrame 
-                end
-            end
-        end)
-        sendNotification({ Title = "Invisibility Active", Desc = "Your character is hidden from other players." })
-    else
-        if character and character:FindFirstChildOfClass("Humanoid") then
-            character:FindFirstChildOfClass("Humanoid").CameraOffset = Vector3.zero
-        end
-        sendNotification({ Title = "Invisibility Disabled", Desc = "Your character is visible again." })
-    end
-end
-
--- =======================================================
---   FEATURE 1: ALIGNPOSITION CONTROLLER HELPERS
--- =======================================================
-local function cleanupAlignFarm()
-    if alignPos then pcall(function() alignPos:Destroy() end) alignPos = nil end
-    if alignRot then pcall(function() alignRot:Destroy() end) alignRot = nil end
-    if farmAttachment then pcall(function() farmAttachment:Destroy() end) farmAttachment = nil end
-end
-
-local function moveToCoinAlign(targetPos)
-    if not rootPart then return end
-
-    if not farmAttachment or not farmAttachment.Parent then
-        cleanupAlignFarm()
-        farmAttachment = Instance.new("Attachment", rootPart)
-
-        alignPos = Instance.new("AlignPosition")
-        alignPos.Mode = Enum.PositionAlignmentMode.OneAttachment
-        alignPos.Attachment0 = farmAttachment
-        alignPos.RigidityEnabled = true
-        alignPos.Position = rootPart.Position
-        alignPos.Parent = rootPart
-
-        alignRot = Instance.new("AlignOrientation")
-        alignRot.Mode = Enum.OrientationAlignmentMode.OneAttachment
-        alignRot.Attachment0 = farmAttachment
-        alignRot.RigidityEnabled = true
-        alignRot.CFrame = rootPart.CFrame * CFrame.Angles(math.rad(90), 0, 0)
-        alignRot.Parent = rootPart
-    end
-
-    alignPos.Position = targetPos
-end
-
--- =======================================================
---   SMART LOBBY DETECTION
--- =======================================================
-local function isPlayerInLobby()
-    local container = Workspace:FindFirstChild("CoinContainer", true)
-        or Workspace:FindFirstChild("CoinVisuals", true)
-        or Workspace:FindFirstChild("Coins", true)
-    if not container then return true end
-
-    local lobby = Workspace:FindFirstChild("Lobby")
-    local char  = player.Character
-    local hrp   = char and char:FindFirstChild("HumanoidRootPart")
-
-    if lobby and hrp then
-        if (hrp.Position - lobby:GetPivot().Position).Magnitude < 200 then
-            return true
-        end
-    end
-    return false
-end
-
--- =======================================================
---   SERVER HOPPING ENGINE
--- =======================================================
-local function serverHop()
-    sendNotification({ Title = "Server Hopping", Desc = "Rival farmers detected! Finding fresh server..." })
-    task.wait(1)
-    queueScriptReload()
-
-    task.spawn(function()
-        local placeId = game.PlaceId
-        local servers = {}
-        local req = (syn and syn.request)
-            or (http and http.request)
-            or http_request
-            or (fluxus and fluxus.request)
-            or request
-
-        if req then
-            local ok, res = pcall(req, {
-                Url    = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/0?sortOrder=Asc&limit=100",
-                Method = "GET"
-            })
-            if ok and res and res.Body then
-                local ok2, body = pcall(function()
-                    return game:GetService("HttpService"):JSONDecode(res.Body)
-                end)
-                if ok2 and body and body.data then
-                    for _, v in ipairs(body.data) do
-                        if type(v) == "table" and v.maxPlayers and v.playing and v.id then
-                            if v.playing < v.maxPlayers and v.id ~= game.JobId then
-                                table.insert(servers, v.id)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        if #servers > 0 then
-            TeleportService:TeleportToPlaceInstance(placeId, servers[math.random(1, #servers)], player)
-        else
-            TeleportService:Teleport(placeId, player)
-        end
-    end)
-end
-
--- =======================================================
---   ANTI-LAG ENGINE
--- =======================================================
-local function optimizePart(part)
-    if part:IsA("BasePart") then
-        part.Material = Enum.Material.SmoothPlastic
-        part.CastShadow = false
-    elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Sparkles") or part:IsA("Fire") or part:IsA("Smoke") then
-        part.Enabled = false
-    elseif part:IsA("Decal") or part:IsA("Texture") then
-        part.Transparency = 1
-    end
-end
-
-local function applyAntiLag()
-    pcall(function()
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 9e9
-
-        for _, effect in ipairs(Lighting:GetChildren()) do
-            if effect:IsA("PostEffect") or effect:IsA("Atmosphere") or effect:IsA("BloomEffect")
-            or effect:IsA("BlurEffect") or effect:IsA("SunRaysEffect")
-            or effect:IsA("ColorCorrectionEffect") or effect:IsA("DepthOfFieldEffect") then
-                effect.Enabled = false
-            end
-        end
-
-        for _, desc in ipairs(Workspace:GetDescendants()) do
-            optimizePart(desc)
-        end
-
-        if not antiLagConnection then
-            antiLagConnection = Workspace.DescendantAdded:Connect(function(desc)
-                if antiLagEnabled then
-                    task.wait()
-                    optimizePart(desc)
-                end
-            end)
-        end
-    end)
-end
-
--- =======================================================
---   SPATIAL DEBUG TRACES
--- =======================================================
-local function drawVisualTrace(startPos, targetPos, color, infoText, duration)
-    if not debugTraces then return end
-    local dist = (startPos - targetPos).Magnitude
-    if dist < 0.2 then return end
-
-    local tracePart = Instance.new("Part")
-    tracePart.Anchored    = true
-    tracePart.CanCollide  = false
-    tracePart.Material    = Enum.Material.Neon
-    tracePart.Color       = color
-    tracePart.Transparency = 0.4
-    tracePart.Size        = Vector3.new(0.15, 0.15, dist)
-    tracePart.CFrame      = CFrame.lookAt(startPos, targetPos) * CFrame.new(0, 0, -dist / 2)
-    tracePart.Parent      = Workspace
-
-    local bGui = Instance.new("BillboardGui")
-    bGui.Size           = UDim2.new(0, 220, 0, 90)
-    bGui.AlwaysOnTop    = true
-    bGui.ExtentsOffset  = Vector3.new(0, 2, 0)
-    bGui.Parent         = tracePart
-
-    local label = Instance.new("TextLabel")
-    label.Size                 = UDim2.new(1, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.TextColor3           = color
-    label.TextStrokeTransparency = 0
-    label.TextStrokeColor3     = Color3.fromRGB(0, 0, 0)
-    label.Font                 = Enum.Font.RobotoMono
-    label.TextSize             = 13
-    label.Text                 = infoText
-    label.TextYAlignment       = Enum.TextYAlignment.Center
-    label.TextXAlignment       = Enum.TextXAlignment.Center
-    label.Parent               = bGui
-
-    task.delay(duration or 0.6, function() tracePart:Destroy() end)
-end
-
--- =======================================================
---   RIVAL FARMER COIN AVOIDANCE
--- =======================================================
-local function isCoinTargetedByFarmer(coin)
-    if not avoidFarmerCoins then return false end
-    for farmerPlr in pairs(detectedAutoFarmers) do
-        if farmerPlr and farmerPlr.Parent and farmerPlr.Character then
-            local fRoot = farmerPlr.Character:FindFirstChild("HumanoidRootPart")
-            if fRoot and (coin.Position - fRoot.Position).Magnitude <= 30 then
-                return true
-            end
-        end
-    end
-    return false
-end
-
--- =======================================================
---   COIN FINDERS
--- =======================================================
-local function scanCoinContainers(callback)
-    local checked = {}
-    local containerNames = { "CoinContainer", "CoinVisuals", "Coins" }
-    for _, name in ipairs(containerNames) do
-        local container = Workspace:FindFirstChild(name, true)
-        if container then
-            for _, obj in ipairs(container:GetChildren()) do
-                if not checked[obj] then
-                    checked[obj] = true
-                    callback(obj)
-                end
-            end
-        end
-    end
-end
-
-local function getSortedCoinPath()
-    local coinPool = {}
-
-    scanCoinContainers(function(obj)
-        if obj:IsA("BasePart") and not coinBlacklists[obj] and obj.Parent then
-            if obj.Name == "Coin_Server"
-            or obj:FindFirstChildWhichIsA("TouchTransmitter")
-            or obj:FindFirstChild("TouchInterest") then
-                local visual = obj:FindFirstChild("CoinVisual")
-                if (not visual or visual.Transparency == 0) and not isCoinTargetedByFarmer(obj) then
-                    table.insert(coinPool, obj)
-                end
-            end
-        end
-    end)
-
-    if #coinPool == 0 then
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name == "Coin_Server"
-            and not coinBlacklists[obj] and obj.Parent then
-                if (obj:FindFirstChildWhichIsA("TouchTransmitter") or obj:FindFirstChild("TouchInterest"))
-                and not isCoinTargetedByFarmer(obj) then
-                    table.insert(coinPool, obj)
-                end
-            end
-        end
-    end
-
-    if #coinPool == 0 then return {} end
-
-    local sortedPath = {}
-    local currentVirtualPos = rootPart and rootPart.Position or Vector3.zero
-
-    while #coinPool > 0 do
-        local nearestIdx, shortestDist = nil, math.huge
-        for i, coin in ipairs(coinPool) do
-            if coin and coin.Parent and not coinBlacklists[coin] then
-                local dist = (coin.Position - currentVirtualPos).Magnitude
-                if dist < shortestDist then
-                    shortestDist = dist
-                    nearestIdx   = i
-                end
-            end
-        end
-        if nearestIdx then
-            local chosen = coinPool[nearestIdx]
-            table.insert(sortedPath, chosen)
-            currentVirtualPos = chosen.Position
-            table.remove(coinPool, nearestIdx)
-        else
-            break
-        end
-    end
-
-    return sortedPath
-end
-
-local function getNearestValidCoin(hrp)
-    local nearest, minDist = nil, math.huge
-    scanCoinContainers(function(coin)
-        if coin:IsA("BasePart") and not coinBlacklists[coin] and coin.Parent then
-            if coin.Name == "Coin_Server" or coin:FindFirstChildWhichIsA("TouchTransmitter") then
-                local visual = coin:FindFirstChild("CoinVisual")
-                if (not visual or visual.Transparency == 0) and not isCoinTargetedByFarmer(coin) then
-                    local dist = (hrp.Position - coin.Position).Magnitude
-                    if dist < minDist then
-                        minDist  = dist
-                        nearest  = coin
-                    end
-                end
-            end
-        end
-    end)
-    return nearest
-end
-
-local function getNearestCoinToPos(pos)
-    local nearest, minDist = nil, math.huge
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name == "Coin_Server" and obj.Parent then
-            if obj:FindFirstChildWhichIsA("TouchTransmitter") or obj:FindFirstChild("TouchInterest") then
-                local dist = (obj.Position - pos).Magnitude
-                if dist < minDist then
-                    minDist = dist
-                    nearest = obj
-                end
-            end
-        end
-    end
-    return nearest, minDist
-end
-
--- =======================================================
---   RIVAL DETECTION
--- =======================================================
-RunService.Heartbeat:Connect(function(dt)
-    if not detectRivalFarmers or dt <= 0 then return end
-
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-
-    for _, targetPlr in ipairs(Players:GetPlayers()) do
-        if targetPlr == player then continue end
-
-        local tChar = targetPlr.Character
-        local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
-        local tHum  = tChar and tChar:FindFirstChildOfClass("Humanoid")
-
-        if tRoot and tHum and tHum.Health > 0 then
-            local currentPos = tRoot.Position
-            local lastPos    = playerLastPositions[targetPlr]
-
-            if lastPos then
-                local moveVector = currentPos - lastPos
-                local distMoved  = moveVector.Magnitude
-
-                local horizontalSpeed = Vector3.new(moveVector.X, 0, moveVector.Z).Magnitude / dt
-                local isSpeeding      = horizontalSpeed > 19.5
-
-                local isNoclipping = false
-                if distMoved > 1 and distMoved < 100 then
-                    raycastParams.FilterDescendantsInstances = { tChar, character, Workspace:FindFirstChild("StormHub_AntiTiltFloor") }
-                    local rayResult = Workspace:Raycast(lastPos, moveVector, raycastParams)
-                    if rayResult and rayResult.Instance and rayResult.Instance.CanCollide then
-                        isNoclipping = true
-                    end
-                end
-
-                local isMovingToCoinStraight = false
-                if distMoved > 1.5 then
-                    local nearestCoin, coinDist = getNearestCoinToPos(lastPos)
-                    if nearestCoin and coinDist < 150 then
-                        local dotProduct = moveVector.Unit:Dot((nearestCoin.Position - lastPos).Unit)
-                        if dotProduct > 0.96 then
-                            isMovingToCoinStraight = true
-                        end
-                    end
-                end
-
-                if isSpeeding or isNoclipping or isMovingToCoinStraight then
-                    playerSpeedFrames[targetPlr] = (playerSpeedFrames[targetPlr] or 0) + 1
-                else
-                    playerSpeedFrames[targetPlr] = math.max(0, (playerSpeedFrames[targetPlr] or 0) - 1)
-                end
-
-                if (playerSpeedFrames[targetPlr] or 0) >= 8 and not detectedAutoFarmers[targetPlr] then
-                    detectedAutoFarmers[targetPlr] = true
-
-                    local reasons = {}
-                    if isSpeeding          then table.insert(reasons, string.format("Speed (%.1f)", horizontalSpeed)) end
-                    if isNoclipping        then table.insert(reasons, "Noclip/Wallpass") end
-                    if isMovingToCoinStraight then table.insert(reasons, "Linear Trajectory") end
-
-                    sendNotification({
-                        Title    = "⚠️ Rival Farmer Flagged!",
-                        Desc     = targetPlr.Name .. ": " .. table.concat(reasons, ", "),
-                        Duration = 4
-                    })
-
-                    pcall(function()
-                        local hl = tChar:FindFirstChild("StormHub_FarmerHighlight") or Instance.new("Highlight")
-                        hl.Name             = "StormHub_FarmerHighlight"
-                        hl.FillColor        = Color3.fromRGB(255, 0, 50)
-                        hl.OutlineColor     = Color3.fromRGB(255, 255, 255)
-                        hl.FillTransparency = 0.3
-                        hl.Parent           = tChar
-                    end)
-
-                    local count = 0
-                    for _ in pairs(detectedAutoFarmers) do count += 1 end
-                    if autoServerHopOnFarmers and count >= maxFarmersBeforeHop then
-                        serverHop()
-                    end
-                end
-            end
-
-            playerLastPositions[targetPlr] = currentPos
-        else
-            playerLastPositions[targetPlr] = nil
-            playerSpeedFrames[targetPlr]   = nil
-        end
-    end
-end)
-
--- =======================================================
---   SAFETY PLATFORM
--- =======================================================
-local safetyPlatform = Instance.new("Part")
-safetyPlatform.Name         = "StormHub_AntiTiltFloor"
-safetyPlatform.Size         = Vector3.new(12, 1, 12)
-safetyPlatform.CanCollide   = true
-safetyPlatform.Anchored     = true
-safetyPlatform.Material     = Enum.Material.SmoothPlastic
-safetyPlatform.Transparency = 1
-safetyPlatform.CastShadow   = false
-safetyPlatform.CanQuery     = false
-safetyPlatform.Parent       = Workspace
-
-RunService.PostSimulation:Connect(function()
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        local p = character.HumanoidRootPart.Position
-        safetyPlatform.CFrame = CFrame.new(p.X, p.Y - 5.5, p.Z)
-    else
-        safetyPlatform.CFrame = CFrame.new(safeWaitingPlace.X, safeWaitingPlace.Y - 5.5, safeWaitingPlace.Z)
-    end
-
-    pcall(function()
-        if player.DevCameraOcclusionMode ~= Enum.DevCameraOcclusionMode.Invisicam then
-            player.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
-        end
-    end)
-end)
-
-player.CharacterAdded:Connect(function(char)
-    character  = char
-    rootPart   = char:WaitForChild("HumanoidRootPart")
-    coinBlacklists = {}
-    if isActive then rootPart.Anchored = false end
-end)
-
-local collectSound = Instance.new("Sound", Workspace)
-collectSound.SoundId = "rbxassetid://90969806436898"
-collectSound.Volume  = 1
-
--- =======================================================
---   COMBAT & SILENT COMBAT MODULES (FEATURE 3)
--- =======================================================
-local function getLocalRole()
-    if matchData and matchData[player.Name] then
-        return matchData[player.Name].Role
-    end
-    return "Innocent"
-end
-
-function EquipKnife()
-    local char  = player.Character
-    local knife = (char and char:FindFirstChild("Knife")) or player.Backpack:FindFirstChild("Knife")
-    if knife and knife.Parent == player.Backpack and char then
-        char:FindFirstChildOfClass("Humanoid"):EquipTool(knife)
-        task.wait(0.1)
-    end
-    return char and char:FindFirstChild("Knife")
-end
-
-function KillAll()
-    if getLocalRole() ~= "Murderer" then return end
-    local char = player.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local tRoot = plr.Character.HumanoidRootPart
-            tRoot.CanCollide = false
-            tRoot.CFrame     = root.CFrame + root.CFrame.LookVector * 2
-        end
-    end
-
-    local knife = EquipKnife()
-    if knife and knife:FindFirstChild("Stab") then
-        for _ = 1, 3 do knife.Stab:FireServer("Down") end
-    end
-    sendNotification({ Title = "Kill All", Desc = "Everyone eliminated!" })
-end
-
--- SILENT KNIFE THROW
-function ExecuteSilentThrow()
-    if not character or not rootPart then return end
-    local knife = (character:FindFirstChild("Knife")) or (player.Backpack and player.Backpack:FindFirstChild("Knife"))
-    if not knife then return end
-
-    local events = knife:FindFirstChild("Events")
-    local knifeThrown = events and events:FindFirstChild("KnifeThrown")
-
-    local target, minDist = nil, 300
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local hum = p.Character:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health > 0 then
-                local dist = (p.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-                if dist < minDist then
-                    minDist = dist
-                    target = p
-                end
-            end
-        end
-    end
-
-    if target and target.Character then
-        local tRoot = target.Character.HumanoidRootPart
-        local tHum  = target.Character:FindFirstChildOfClass("Humanoid")
-        local ping  = 0
-        pcall(function() ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 1000 end)
-
-        local predTime = (State.Prediction * State.GunLeadMult) + ping
-        local moveVec  = tRoot.AssemblyLinearVelocity
-        if moveVec.Magnitude < 0.5 and tHum and tHum.MoveDirection.Magnitude > 0 then
-            moveVec = tHum.MoveDirection * tHum.WalkSpeed
-        end
-
-        local predictedPos = tRoot.Position + (moveVec * predTime)
-
-        if knife.Parent == player.Backpack and character:FindFirstChildOfClass("Humanoid") then
-            character:FindFirstChildOfClass("Humanoid"):EquipTool(knife)
-            task.wait(0.05)
-        end
-
-        if knifeThrown then
-            knifeThrown:FireServer(CFrame.new(rootPart.Position), CFrame.new(predictedPos))
-            sendNotification({ Title = "Silent Throw", Desc = "Knife thrown at " .. target.Name })
-        end
-    end
-end
-
--- SILENT KNIFE AURA
-function ToggleSilentKnifeAura(state)
-    silentAuraEnabled = state
-    if silentAuraConnection then silentAuraConnection:Disconnect() silentAuraConnection = nil end
-
-    if state then
-        silentAuraConnection = RunService.Heartbeat:Connect(function()
-            if not silentAuraEnabled or getLocalRole() ~= "Murderer" then return end
-            local knife = (character and character:FindFirstChild("Knife")) or (player.Backpack and player.Backpack:FindFirstChild("Knife"))
-            if not knife then return end
-
-            local events = knife:FindFirstChild("Events")
-            local handleTouched = events and events:FindFirstChild("HandleTouched")
-            local knifeStabbed = events and events:FindFirstChild("KnifeStabbed")
-
-            if not handleTouched then return end
-
-            local hitAny = false
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player and p.Character then
-                    local tRoot = p.Character:FindFirstChild("HumanoidRootPart")
-                    local tHum  = p.Character:FindFirstChildOfClass("Humanoid")
-                    if tRoot and tHum and tHum.Health > 0 then
-                        if (tRoot.Position - rootPart.Position).Magnitude <= silentAuraRange then
-                            pcall(function() handleTouched:FireServer(tRoot) end)
-                            hitAny = true
-                        end
-                    end
-                end
-            end
-
-            if hitAny and knifeStabbed then
-                pcall(function() knifeStabbed:FireServer() end)
-            end
-        end)
-    end
-end
-
-local function FindGunHolder()
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == player then continue end
-        local char = plr.Character
-        if char and char:FindFirstChild("Gun") then return plr end
-        if plr:FindFirstChild("Backpack") and plr.Backpack:FindFirstChild("Gun") then return plr end
-    end
-    return nil
-end
-
-function AutoKillTargets()
-    if getLocalRole() ~= "Murderer" or not isActive then return end
-
-    if priorityKillFarmers then
-        for farmerPlr in pairs(detectedAutoFarmers) do
-            if farmerPlr and farmerPlr.Parent and farmerPlr.Character then
-                local fChar  = farmerPlr.Character
-                local fRoot  = fChar:FindFirstChild("HumanoidRootPart")
-                local fHum   = fChar:FindFirstChildOfClass("Humanoid")
-                local myRoot = character:FindFirstChild("HumanoidRootPart")
-                if fRoot and myRoot and fHum and fHum.Health > 0 then
-                    fRoot.CanCollide = false
-                    fRoot.CFrame     = myRoot.CFrame + myRoot.CFrame.LookVector * 2
-                    local knife = EquipKnife()
-                    if knife and knife:FindFirstChild("Stab") then
-                        knife.Stab:FireServer("Down")
-                    end
-                    task.wait(0.15)
-                end
-            end
-        end
-    end
-
-    local gunHolder = FindGunHolder()
-    if gunHolder and gunHolder.Character then
-        local tRoot  = gunHolder.Character:FindFirstChild("HumanoidRootPart")
-        local tHum   = gunHolder.Character:FindFirstChildOfClass("Humanoid")
-        local myRoot = character:FindFirstChild("HumanoidRootPart")
-        if tRoot and myRoot and tHum and tHum.Health > 0 then
-            tRoot.CanCollide = false
-            tRoot.CFrame     = myRoot.CFrame + myRoot.CFrame.LookVector * 2
-            local knife = EquipKnife()
-            if knife and knife:FindFirstChild("Stab") then
-                knife.Stab:FireServer("Down")
-            end
-        end
-    end
-end
-
-function ShootMurderer()
-    if not murdererPlayer or not murdererPlayer.Character then return end
-    local mRoot  = murdererPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local myChar = player.Character
-    if not mRoot or not myChar or not rootPart then return end
-
-    local gun = myChar:FindFirstChild("Gun") or player.Backpack:FindFirstChild("Gun")
-    if gun and gun.Parent == player.Backpack then
-        local hum = myChar:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:EquipTool(gun)
-            task.wait(0.2)
-        end
-        gun = myChar:FindFirstChild("Gun")
-    end
-    if not gun then return end
-
-    local shootRemote = gun:FindFirstChild("Shoot")
-        or (GameplayRemotes and GameplayRemotes:FindFirstChild("ShootGun"))
-    if not shootRemote then return end
-
-    local originPos = mRoot.Position + Vector3.new(0, 0, -0.4)
-    local ping = 0
-    pcall(function()
-        ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 1000
-    end)
-
-    local timeOffset   = (State.Prediction * State.GunLeadMult) + ping
-    local predictedPos = mRoot.Position + (mRoot.AssemblyLinearVelocity * timeOffset)
-    local shotOrigin   = CFrame.lookAt(originPos, predictedPos)
-
-    shootRemote:FireServer(shotOrigin, CFrame.new(predictedPos))
-end
-
-function GetGun()
-    local attempts = 0
-    isSearchingForGun = true
-
-    while isActive and attempts < 5 do
-        local myChar = player.Character
-        local root   = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        if not root then task.wait(0.1) continue end
-
-        if player.Backpack:FindFirstChild("Gun") or (myChar and myChar:FindFirstChild("Gun")) then
-            isSearchingForGun = false
-            return true
-        end
-
-        local drop = Workspace:FindFirstChild("GunDrop", true)
-        if drop and drop:IsA("BasePart") then
-            root.AssemblyLinearVelocity = Vector3.zero
-            drop.CFrame = root.CFrame + Vector3.new(0, 2, 0)
-            task.wait(0.05)
-
-            if firetouchinterest then
-                firetouchinterest(root, drop, 0)
-                firetouchinterest(root, drop, 1)
-            end
-
-            local prompt = drop:FindFirstChildOfClass("ProximityPrompt")
-            if prompt then fireproximityprompt(prompt) end
-            task.wait(0.8)
-        else
-            task.wait(1)
-        end
-
-        attempts += 1
-    end
-
-    isSearchingForGun = false
-    return false
-end
-
--- =======================================================
---   KINEMATIC PATH DANGER CHECK
--- =======================================================
-local function isPathDangerous(startPos, endPos, murdPos)
-    if ignoreMurderer or getLocalRole() == "Murderer" or murdererPlayer == player then return false end
-    if not murdPos or not murdererPlayer or not murdererPlayer.Character then return false end
-
-    local rp = RaycastParams.new()
-    rp.FilterType = Enum.RaycastFilterType.Exclude
-    rp.FilterDescendantsInstances = { murdererPlayer.Character, character, safetyPlatform }
-
-    if (endPos - murdPos).Magnitude <= 25 then
-        local ray = Workspace:Raycast(murdPos, endPos - murdPos, rp)
-        drawVisualTrace(murdPos, endPos, Color3.fromRGB(255, 50, 50),
-            string.format("Info - %.1f studs\nWhy: Destination Proximity", (endPos - murdPos).Magnitude), 0.8)
-        if not ray then return true end
-    end
-
-    local pathVec    = endPos - startPos
-    local pathLen    = pathVec.Magnitude
-    if pathLen == 0 then return false end
-
-    local pathDir    = pathVec.Unit
-    local toMurd     = murdPos - startPos
-    local projection = toMurd:Dot(pathDir)
-
-    if projection > 0 and projection < pathLen then
-        local closestPoint = startPos + pathDir * projection
-        if (murdPos - closestPoint).Magnitude <= 25 then
-            local ray2 = Workspace:Raycast(murdPos, closestPoint - murdPos, rp)
-            drawVisualTrace(murdPos, closestPoint, Color3.fromRGB(255, 130, 0),
-                string.format("Info - %%.1f studs\nWhy: Vector Path Intersect", (closestPoint - murdPos).Magnitude), 0.8)
-            if not ray2 then return true end
-        end
-    end
-
-    return false
-end
-
--- =======================================================
---   MOVEMENT HELPER
--- =======================================================
-local function moveToPosition(targetPos, speed)
-    if not rootPart or not isActive then return end
-    rootPart.Anchored = false
-
-    local distance = (targetPos - rootPart.Position).Magnitude
-    if distance < 0.3 then return end
-
-    if distance >= 200 then
-        drawVisualTrace(rootPart.Position, targetPos, Color3.fromRGB(0, 130, 255),
-            string.format("TP - %.1f studs", distance), 1.5)
-        rootPart.CFrame               = CFrame.new(targetPos)
-        rootPart.AssemblyLinearVelocity  = Vector3.zero
-        rootPart.AssemblyAngularVelocity = Vector3.zero
-        task.wait(0.05)
-        return
-    end
-
-    local duration = distance / (speed or flySpeed)
-    local tween    = TweenService:Create(rootPart,
-        TweenInfo.new(duration, Enum.EasingStyle.Linear),
-        { CFrame = CFrame.new(targetPos) })
-    tween:Play()
-
-    local cancelCheck
-    cancelCheck = RunService.Heartbeat:Connect(function()
-        if not isActive then
-            tween:Cancel()
-            if cancelCheck then cancelCheck:Disconnect() end
-        end
-        if rootPart then
-            rootPart.AssemblyLinearVelocity  = Vector3.zero
-            rootPart.AssemblyAngularVelocity = Vector3.zero
-        end
-    end)
-
-    tween.Completed:Wait()
-    if cancelCheck and cancelCheck.Connected then cancelCheck:Disconnect() end
-
-    -- (rest of file unchanged from latest committed full content)
+startFarm()
