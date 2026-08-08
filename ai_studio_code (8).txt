@@ -52,23 +52,17 @@ local function queueScriptReload()
             queueFunc([[
                 repeat task.wait(1) until game:IsLoaded()
                 task.wait(2)
-                local executed = false
-                if isfile then
-                    if isfile("auto_farm.lua") then
-                        loadstring(game:HttpGet("https://raw.githubusercontent.com/storming-acc/auto-farm/refs/heads/main/ai_studio_code%20(8).txt"))()
-                        executed = true
-                    elseif isfile("auto_farm") then
-                        loadstring(readfile("auto_farm"))()
-                        executed = true
-                    end
+                
+                -- Directly load the remote script without checking for local files
+                local success, err = pcall(function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/storming-acc/auto-farm/refs/heads/main/ai_studio_code%20(8).txt"))()
+                end)
+
+                if success then
+                    print("Storm Hub Script reloaded successfully after teleport/rejoin!")
+                else
+                    warn("Storm Hub: Failed to reload script after teleport - " .. tostring(err))
                 end
-                if not executed and loadfile then
-                    pcall(function() loadfile("auto_farm.lua")() executed = true end)
-                    if not executed then
-                        pcall(function() loadfile("auto_farm")() end)
-                    end
-                end
-                print("Storm Hub: Local 'auto_farm' reloaded successfully after teleport/rejoin!")
             ]])
         end)
     end
